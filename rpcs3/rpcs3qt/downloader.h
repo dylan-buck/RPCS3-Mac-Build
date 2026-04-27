@@ -22,6 +22,7 @@ public:
 	~downloader();
 
 	void start(const std::string& url, bool follow_location, bool show_progress_dialog, const QString& progress_dialog_title = "", bool keep_progress_dialog_open = false, int expected_size = -1);
+	void set_user_agent(const std::string& agent);
 	usz update_buffer(char* data, usz size);
 
 	void update_progress_dialog(const QString& title) const;

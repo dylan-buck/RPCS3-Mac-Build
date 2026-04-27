@@ -22,6 +22,12 @@ downloader::downloader(QWidget* parent)
 {
 }
 
+void downloader::set_user_agent(const std::string& agent)
+{
+	const CURLcode err = curl_easy_setopt(m_curl->get_curl(), CURLOPT_USERAGENT, agent.c_str());
+	if (err != CURLE_OK) network_log.error("curl_easy_setopt(CURLOPT_USERAGENT): %s", curl_easy_strerror(err));
+}
+
 downloader::~downloader()
 {
 	if (m_thread && m_thread->isRunning())

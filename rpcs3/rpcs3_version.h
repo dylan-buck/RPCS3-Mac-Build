@@ -10,6 +10,7 @@ namespace rpcs3
 	const ::utils::version& get_version();
 	std::string get_version_and_branch();
 	std::string get_verbose_version();
+	std::string_view get_release_tag();
 	bool is_release_build();
 	bool is_local_build();
 }

@@ -44,6 +44,11 @@ namespace rpcs3
 		return "RPCS3 DB Mac Build v2";
 	}
 
+	std::string_view get_release_tag()
+	{
+		return RPCS3_GIT_RELEASE_TAG;
+	}
+
 	bool is_release_build()
 	{
 		static constexpr bool is_release_build = std::string_view(RPCS3_GIT_FULL_BRANCH) == "RPCS3/rpcs3/master"sv;
@@ -52,7 +57,11 @@ namespace rpcs3
 
 	bool is_local_build()
 	{
-		static constexpr bool is_local_build = std::string_view(RPCS3_GIT_FULL_BRANCH) == "local_build"sv;
-		return is_local_build;
+		// A build with a valid release tag is not considered local
+		if (std::string_view(RPCS3_GIT_RELEASE_TAG) != "unknown"sv)
+			return false;
+
+		static constexpr bool is_local = std::string_view(RPCS3_GIT_FULL_BRANCH) == "local_build"sv;
+		return is_local;
 	}
 }

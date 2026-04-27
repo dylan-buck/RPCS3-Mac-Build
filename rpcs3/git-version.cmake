@@ -45,9 +45,16 @@ function(gen_git_version rpcs3_src_dir)
 		set(RPCS3_GIT_FULL_BRANCH "$ENV{BUILD_REPOSITORY_NAME}/$ENV{BUILD_SOURCEBRANCHNAME}")
 	endif()
 
+	# RPCS3_RELEASE_TAG is set by CI to the GitHub release tag (e.g. v0.0.37-18119-rpcn30)
+	set(RPCS3_RELEASE_TAG_VALUE "$ENV{RPCS3_RELEASE_TAG}")
+	if ("${RPCS3_RELEASE_TAG_VALUE}" STREQUAL "")
+		set(RPCS3_RELEASE_TAG_VALUE "unknown")
+	endif()
+
 	message(STATUS "RPCS3_GIT_VERSION: " ${RPCS3_GIT_VERSION})
 	message(STATUS "RPCS3_GIT_BRANCH: " ${RPCS3_GIT_BRANCH})
 	message(STATUS "RPCS3_GIT_FULL_BRANCH: " ${RPCS3_GIT_FULL_BRANCH})
+	message(STATUS "RPCS3_GIT_RELEASE_TAG: " ${RPCS3_RELEASE_TAG_VALUE})
 
 	if(EXISTS ${GIT_VERSION_FILE})
 		# Don't update if marked not to update.
@@ -68,7 +75,8 @@ function(gen_git_version rpcs3_src_dir)
 	set(code_string "// This is a generated file.\n\n"
 		"#define RPCS3_GIT_VERSION \"${RPCS3_GIT_VERSION}\"\n"
 		"#define RPCS3_GIT_BRANCH \"${RPCS3_GIT_BRANCH}\"\n"
-		"#define RPCS3_GIT_FULL_BRANCH \"${RPCS3_GIT_FULL_BRANCH}\"\n\n"
+		"#define RPCS3_GIT_FULL_BRANCH \"${RPCS3_GIT_FULL_BRANCH}\"\n"
+		"#define RPCS3_GIT_RELEASE_TAG \"${RPCS3_RELEASE_TAG_VALUE}\"\n\n"
 		"// If you don't want this file to update/recompile, change to 1.\n"
 		"#define RPCS3_GIT_VERSION_NO_UPDATE 0\n")
 

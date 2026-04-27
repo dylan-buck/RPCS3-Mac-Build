@@ -3,9 +3,73 @@
 #include <util/types.hpp>
 #include <functional>
 #include <algorithm>
+#include <cstdlib>
 
 namespace rsx
 {
+	// Cherry-picked from upstream commits 6e1197863, 50c9a9194, 7b560e5ff, 2a6f1cf35.
+	// The macOS branch is the load-bearing one: std::aligned_alloc on macOS rejects
+	// sizes that aren't a multiple of the alignment, so without align_up the call
+	// returns nullptr / undefined memory and the new libmalloc zone allocator on
+	// macOS 26 trips on the corruption.
+	namespace aligned_allocator
+	{
+		template <size_t Align>
+			requires (Align != 0) && ((Align & (Align - 1)) == 0)
+		size_t align_up(size_t size)
+		{
+			return (size + (Align - 1)) & ~(Align - 1);
+		}
+
+		template <size_t Align>
+			requires (Align != 0) && ((Align & (Align - 1)) == 0)
+		void* malloc(size_t size)
+		{
+#if defined(_WIN32)
+			return _aligned_malloc(size, Align);
+#elif defined(__APPLE__)
+			constexpr size_t NativeAlign = std::max(Align, sizeof(void*));
+			return std::aligned_alloc(NativeAlign, align_up<NativeAlign>(size));
+#else
+			return std::aligned_alloc(Align, align_up<Align>(size));
+#endif
+		}
+
+		template <size_t Align>
+			requires (Align != 0) && ((Align & (Align - 1)) == 0)
+		void* realloc(void* prev_ptr, [[maybe_unused]] size_t prev_size, size_t new_size)
+		{
+			if (align_up<Align>(prev_size) >= new_size)
+			{
+				return prev_ptr;
+			}
+
+			ensure(reinterpret_cast<usz>(prev_ptr) % Align == 0, "Pointer not aligned to Align");
+#if defined(_WIN32)
+			return _aligned_realloc(prev_ptr, new_size, Align);
+#else
+#if defined(__APPLE__)
+			constexpr size_t NativeAlign = std::max(Align, sizeof(void*));
+			void* ret = std::aligned_alloc(NativeAlign, align_up<NativeAlign>(new_size));
+#else
+			void* ret = std::aligned_alloc(Align, align_up<Align>(new_size));
+#endif
+			std::memcpy(ret, prev_ptr, std::min(prev_size, new_size));
+			std::free(prev_ptr);
+			return ret;
+#endif
+		}
+
+		static inline void free(void* ptr)
+		{
+#ifdef _WIN32
+			_aligned_free(ptr);
+#else
+			std::free(ptr);
+#endif
+		}
+	}
+
 	template <typename Ty>
 		requires std::is_trivially_destructible_v<Ty>
 	struct simple_array
@@ -105,7 +169,7 @@ namespace rsx
 			{
 				if (!is_local_storage())
 				{
-					free(_data);
+					aligned_allocator::free(_data);
 				}
 
 				_data = nullptr;
@@ -173,13 +237,13 @@ namespace rsx
 			if (is_local_storage())
 			{
 				// Switch to heap storage
-				_data = static_cast<Ty*>(std::malloc(sizeof(Ty) * size));
+				_data = static_cast<Ty*>(aligned_allocator::malloc<alignof(Ty)>(sizeof(Ty) * size));
 				std::memcpy(static_cast<void*>(_data), _local_storage, size_bytes());
 			}
 			else
 			{
 				// Extend heap storage
-				ensure(_data = static_cast<Ty*>(std::realloc(_data, sizeof(Ty) * size))); // "realloc() failed!"
+				ensure(_data = static_cast<Ty*>(aligned_allocator::realloc<alignof(Ty)>(_data, sizeof(Ty) * _capacity, sizeof(Ty) * size))); // "realloc() failed!"
 			}
 
 			_capacity = size;

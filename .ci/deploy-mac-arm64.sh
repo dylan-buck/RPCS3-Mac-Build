@@ -31,18 +31,20 @@ rm -rf "rpcs3.app/Contents/Frameworks/QtPdf.framework" \
 
 ../../.ci/optimize-mac.sh rpcs3.app
 
-# Hack
-install_name_tool \
--delete_rpath /opt/homebrew/lib \
--delete_rpath /opt/homebrew/opt/llvm@$LLVM_COMPILER_VER/lib RPCS3.app/Contents/MacOS/rpcs3
-#-delete_rpath /opt/homebrew1/Cellar/sdl3/3.2.8/lib
+# Remove homebrew rpaths if present (may already be removed by macdeployqt)
+install_name_tool -delete_rpath /opt/homebrew/lib RPCS3.app/Contents/MacOS/rpcs3 2>/dev/null || true
+install_name_tool -delete_rpath /opt/homebrew/opt/llvm@$LLVM_COMPILER_VER/lib RPCS3.app/Contents/MacOS/rpcs3 2>/dev/null || true
 
 # Need to do this rename hack due to case insensitive filesystem
 mv rpcs3.app RPCS3_.app
 mv RPCS3_.app RPCS3.app
 
-# NOTE: "--deep" is deprecated
-codesign --deep -fs - RPCS3.app
+# Make the bundle writable: dylibs copied from Homebrew Cellar inherit read-only mode,
+# which blocks xattr -cr from clearing extended attributes
+chmod -R u+w RPCS3.app
+# Clear extended attributes before signing (prevents "detritus" errors)
+xattr -cr RPCS3.app
+codesign --force --deep -s - RPCS3.app
 
 echo "[InternetShortcut]" > Quickstart.url
 echo "URL=https://rpcs3.net/quickstart" >> Quickstart.url
@@ -64,10 +66,14 @@ echo "IconIndex=0" >> Quickstart.url
 #FILESIZE=$(stat -f %z "$DMG_FILEPATH")
 #SHA256SUM=$(shasum -a 256 "$DMG_FILEPATH" | awk '{ print $1 }')
 
-ARCHIVE_FILEPATH="$BUILD_ARTIFACTSTAGINGDIRECTORY/rpcs3-v${COMM_TAG}-${COMM_COUNT}-${COMM_HASH}_macos_arm64.7z"
-"$BREW_PATH/bin/7z" a -mx9 "$ARCHIVE_FILEPATH" RPCS3.app Quickstart.url
+# Create zip archive using ditto (preserves code signatures, symlinks, extended attributes)
+ARCHIVE_FILEPATH="$BUILD_ARTIFACTSTAGINGDIRECTORY/RPCS3-Mac-Build-arm64.zip"
+ditto -ck --sequesterRsrc --keepParent RPCS3.app "$ARCHIVE_FILEPATH"
 FILESIZE=$(stat -f %z "$ARCHIVE_FILEPATH")
 SHA256SUM=$(shasum -a 256 "$ARCHIVE_FILEPATH" | awk '{ print $1 }')
+
+# Write sha256sum.txt for the auto-updater
+echo "${SHA256SUM}  RPCS3-Mac-Build-arm64.zip" > "$BUILD_ARTIFACTSTAGINGDIRECTORY/sha256sum.txt"
 
 cd ..
 echo "${SHA256SUM};${FILESIZE}B" > "$RELEASE_MESSAGE"

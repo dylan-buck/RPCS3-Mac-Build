@@ -6,17 +6,24 @@ export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
 export HOMEBREW_NO_ENV_HINTS=1
 export HOMEBREW_NO_INSTALL_CLEANUP=1
 
+# Unlink ALL homebrew Qt packages to prevent macdeployqt from bundling wrong version
+for pkg in $(/opt/homebrew/bin/brew list --formula | grep -i '^qt'); do
+  /opt/homebrew/bin/brew unlink "$pkg" 2>/dev/null || true
+done
+
 /opt/homebrew/bin/brew install -f --overwrite --quiet nasm ninja p7zip ccache pipenv gnutls freetype googletest #create-dmg
 /opt/homebrew/bin/brew install -f --quiet ffmpeg@5
 /opt/homebrew/bin/brew install --quiet "llvm@$LLVM_COMPILER_VER" glew cmake sdl3 vulkan-headers coreutils
 /opt/homebrew/bin/brew link -f --quiet "llvm@$LLVM_COMPILER_VER" ffmpeg@5
 /opt/homebrew/bin/brew unlink --quiet protobuf 2>/dev/null || true
 
-# moltenvk based on commit for 1.3.0 release
-export HOMEBREW_DEVELOPER=1 # Prevents blocking of local formulae
-wget https://raw.githubusercontent.com/Homebrew/homebrew-core/7255441cbcafabaa8950f67c7ec55ff499dbb2d3/Formula/m/molten-vk.rb
-/opt/homebrew/bin/brew install -f --overwrite --formula --quiet ./molten-vk.rb
-export HOMEBREW_DEVELOPER=0
+# moltenvk - use system-installed version if available, otherwise install pinned 1.3.0
+if ! brew list molten-vk &>/dev/null; then
+  export HOMEBREW_DEVELOPER=1 # Prevents blocking of local formulae
+  wget https://raw.githubusercontent.com/Homebrew/homebrew-core/7255441cbcafabaa8950f67c7ec55ff499dbb2d3/Formula/m/molten-vk.rb
+  /opt/homebrew/bin/brew install -f --overwrite --formula --quiet ./molten-vk.rb
+  export HOMEBREW_DEVELOPER=0
+fi
 export CXX=clang++
 export CC=clang
 
@@ -41,7 +48,7 @@ if [ ! -d "/tmp/Qt/$QT_VER" ]; then
   # archived Qt 6.7.3 URL workaround
   sed -i '' "s/official_releases/archive/g" qt-downloader
   cd "/tmp/Qt"
-  arch -arm64 "$BREW_PATH/bin/pipenv" run pip3 uninstall py7zr requests semantic_version lxml
+  arch -arm64 "$BREW_PATH/bin/pipenv" run pip3 uninstall -y py7zr requests semantic_version lxml
   arch -arm64 "$BREW_PATH/bin/pipenv" run pip3 install py7zr requests semantic_version lxml  --no-cache
   mkdir -p "$QT_VER/macos" ; ln -s "macos" "$QT_VER/clang_64"
   # sed -i '' 's/args\.version \/ derive_toolchain_dir(args) \/ //g' "$WORKDIR/qt-downloader/qt-downloader" # Qt 6.9.1 workaround
@@ -50,6 +57,18 @@ fi
 
 cd "$WORKDIR"
 ditto "/tmp/Qt/$QT_VER" "qt-downloader/$QT_VER"
+
+# Fix AGL framework references removed in macOS 26 SDK
+find "qt-downloader/$QT_VER" -name '*.prl' -exec sed -i '' 's/-framework AGL//g' {} +
+WRAP_OPENGL_CMAKE="qt-downloader/$QT_VER/clang_64/lib/cmake/Qt6/FindWrapOpenGL.cmake"
+# Disable the AGL find_library, the fallback that hardcodes -framework AGL, and the AGL link.
+# The address ranges below are idempotent: once lines are commented they no longer match.
+sed -i '' \
+    -e 's|find_library(WrapOpenGL_AGL NAMES AGL)|# AGL removed in macOS 26 SDK|' \
+    -e '/^        if(WrapOpenGL_AGL)$/,/^        endif()$/ s|^|#|' \
+    -e '/^        if(NOT __opengl_agl_fw_path)$/,/^        endif()$/ s|^|#|' \
+    -e 's|^        target_link_libraries(WrapOpenGL::WrapOpenGL INTERFACE ${__opengl_agl_fw_path})$|        # &|' \
+    "$WRAP_OPENGL_CMAKE"
 
 export Qt6_DIR="$WORKDIR/qt-downloader/$QT_VER/clang_64/lib/cmake/Qt$QT_VER_MAIN"
 export SDL3_DIR="$BREW_PATH/opt/sdl3/lib/cmake/SDL3"
@@ -78,6 +97,9 @@ sed -i '' "s/extern const double NSAppKitVersionNumber;/const double NSAppKitVer
 mkdir build && cd build || exit 1
 
 export MACOSX_DEPLOYMENT_TARGET=14.0
+
+# Set release tag for auto-updater (passed in by CI/release workflow)
+export RPCS3_RELEASE_TAG="${RPCS3_RELEASE_TAG:-unknown}"
 
 "$BREW_PATH/bin/cmake" .. \
     -DBUILD_RPCS3_TESTS="${RUN_UNIT_TESTS}" \
@@ -111,7 +133,7 @@ export MACOSX_DEPLOYMENT_TARGET=14.0
     -DCMAKE_IGNORE_PREFIX_PATH=/opt/homebrew/opt \
     -DCMAKE_CXX_FLAGS="-D__MAC_OS_X_VERSION_MIN_REQUIRED=140000" \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-    -DCMAKE_OSX_SYSROOT="$(xcrun --sdk macosx --show-sdk-path)" \
+    -DCMAKE_OSX_SYSROOT="${CMAKE_OSX_SYSROOT:-$(xcrun --sdk macosx --show-sdk-path)}" \
     -G Ninja
 
 "$BREW_PATH/bin/ninja"; build_status=$?;

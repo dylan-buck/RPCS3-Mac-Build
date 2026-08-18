@@ -68,6 +68,9 @@ namespace rpcn
 		GetRoomInfoGUI,
 		QuickMatchGUI,
 		SearchJoinRoomGUI,
+		GetRoomMemberDataExternalList,
+		UnlockTrophy,
+		SyncTrophies,
 	};
 
 	enum class NotificationType : u16

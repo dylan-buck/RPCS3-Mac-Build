@@ -925,6 +925,9 @@ namespace rsx
 			std::function<void()> on_data_transfer_completed = {},
 			Args&&... extras)
 		{
+			if (texdbg_watch(fault_range_in.start) || texdbg_watch(fault_range_in.end))
+				rsx_log.error("TEXDBG INVAL range=0x%x..0x%x read=%d", fault_range_in.start, fault_range_in.end, cause.is_read() ? 1 : 0);
+
 #ifdef TEXTURE_CACHE_DEBUG
 			// Check that the cache has the correct protections
 			tex_cache_checker.verify();
@@ -2251,6 +2254,19 @@ namespace rsx
 			return result.first;
 		}
 
+		// TEXDBG: temporary diagnostic for macOS foliage/particle corruption. Watches the
+		// guest addresses of the affected Warhawk textures and reports what the cache serves
+		// for them. Enabled only when RPCS3_TEXDBG is set in the environment; zero cost otherwise.
+		static bool texdbg_watch(u32 addr)
+		{
+			static const bool enabled = !!::getenv("RPCS3_TEXDBG");
+			if (!enabled) [[likely]] return false;
+			static constexpr u32 watch[] = { 0xC3301000u, 0xC6B23B80u, 0xC6FE6980u, 0xC772DF80u };
+			for (u32 w : watch)
+				if (addr >= w && addr < w + 0x60000u) return true;
+			return false;
+		}
+
 		template <typename RsxTextureType, typename surface_store_type, typename ...Args>
 		sampled_image_descriptor upload_texture(commandbuffer_type& cmd, const RsxTextureType& tex, surface_store_type& m_rtts, Args&&... extras)
 		{
@@ -2371,6 +2387,9 @@ namespace rsx
 
 			if (result.validate())
 			{
+				if (texdbg_watch(attributes.address))
+					rsx_log.error("TEXDBG HIT addr=0x%x ctx=%u handle=%d fmt=0x%x %ux%u mip=%u swz=%d", attributes.address, static_cast<u32>(result.upload_context), result.image_handle ? 1 : 0, attributes.gcm_format, attributes.width, attributes.height, attributes.mipmaps, attributes.swizzled ? 1 : 0);
+
 				if (!result.image_handle) [[unlikely]]
 				{
 					// Deferred reconstruct
@@ -2500,6 +2519,9 @@ namespace rsx
 			// Invalidate
 			const address_range32 tex_range = address_range32::start_length(attributes.address, tex_size);
 			invalidate_range_impl_base(cmd, tex_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
+
+			if (texdbg_watch(attributes.address))
+				rsx_log.error("TEXDBG UPLOAD addr=0x%x fmt=0x%x %ux%u mip=%u pitch=%u swz=%d size=%u", attributes.address, attributes.gcm_format, attributes.width, attributes.height, attributes.mipmaps, attributes.pitch, attributes.swizzled ? 1 : 0, tex_size);
 
 			// Upload from CPU. Note that sRGB conversion is handled in the FS
 			auto uploaded = upload_image_from_cpu(cmd, tex_range, attributes.width, attributes.height, attributes.depth, tex.get_exact_mipmap_count(), attributes.pitch, attributes.gcm_format,

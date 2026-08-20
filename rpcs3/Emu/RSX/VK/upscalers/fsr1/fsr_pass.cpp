@@ -232,8 +232,14 @@ namespace vk
 		VkFormat data_format = VK_FORMAT_UNDEFINED;
 
 		// Check if it is possible to actually write to the format we want.
-		// Fallback to RGBA8 is supported as well
-		std::array<VkFormat, 2> supported_formats = { VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM };
+		// NOTE: The FSR compute shaders declare their output as "layout(..., rgba8)", and the Vulkan spec
+		// requires a storage image's view format to match the format qualifier declared in the shader.
+		// R8G8B8A8 is therefore listed first: it is the only one of the two that matches, and storage
+		// support for it is mandated by the spec, so it is always available on a conformant driver.
+		// B8G8R8A8 is kept only as a last-ditch fallback. Most desktop drivers do not advertise storage
+		// support for it at all, but MoltenVK does, which made macOS silently select a format that
+		// disagrees with the shader (undefined behaviour) while every other platform picked R8G8B8A8.
+		std::array<VkFormat, 2> supported_formats = { VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM };
 		for (const auto& format : supported_formats)
 		{
 			const VkFlags all_required_bits = VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_TRANSFER_SRC_BIT;

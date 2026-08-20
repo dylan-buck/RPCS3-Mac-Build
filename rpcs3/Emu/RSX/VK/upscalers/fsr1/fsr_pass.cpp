@@ -324,6 +324,14 @@ namespace vk
 				// Prepare for EASU pass
 				src->push_layout(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+				// push_layout() delegates to change_image_layout(), which returns without emitting
+				// anything when the image is already in the requested layout. The source frame is
+				// frequently already SHADER_READ_ONLY_OPTIMAL, so no barrier is generated and the
+				// EASU sample is left unordered against whatever last wrote that image. The bilinear
+				// path never hits this because it transitions to TRANSFER_SRC_OPTIMAL, which is always
+				// a real transition and therefore always carries a barrier.
+				vk::insert_global_memory_barrier(cmd);
+
 				if (m_intermediate_data->current_layout != VK_IMAGE_LAYOUT_GENERAL)
 				{
 					m_intermediate_data->change_layout(cmd, VK_IMAGE_LAYOUT_GENERAL);
@@ -357,8 +365,14 @@ namespace vk
 					VK_ACCESS_SHADER_READ_BIT,
 					{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
+				// Order the EASU write before the RCAS read.
+				vk::insert_global_memory_barrier(cmd);
+
 				// RCAS
 				cs_rcas_task->run(cmd, m_intermediate_data.get(), m_output_data.get(), input_size, output_size);
+
+				// Order the RCAS write before the image is consumed downstream.
+				vk::insert_global_memory_barrier(cmd);
 
 				// Cleanup
 				src->pop_layout(cmd);

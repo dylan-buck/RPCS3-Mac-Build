@@ -299,6 +299,7 @@ namespace rpcn
 		ErrorType send_reset_token(std::string_view npid, std::string_view email);
 		ErrorType reset_password(std::string_view npid, std::string_view token, std::string_view password);
 		ErrorType delete_account();
+		ErrorType delete_trophies(std::string_view communication_id = {});
 		bool add_friend(const std::string& friend_username);
 		bool remove_friend(const std::string& friend_username);
 

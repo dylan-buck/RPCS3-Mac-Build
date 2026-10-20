@@ -1,5 +1,11 @@
 # Building
 
+> **This fork (RPCS3 Mac Build):** this file is upstream RPCS3's generic build guide and is kept for reference. For this fork, use:
+> - **macOS:** [BUILDING-LOCAL-MAC.md](BUILDING-LOCAL-MAC.md)
+> - **Windows:** [BUILDING-WINDOWS.md](BUILDING-WINDOWS.md) (MSYS2 + Clang)
+>
+> The Visual Studio routes below (`rpcs3.sln` and the `msvc` CMake preset) **don't work in this fork**. The `.sln`/`.vcxproj` files lack upstream's Protobuf migration, and both routes use LLVM 19, while this fork requires LLVM 21. This fork also commits its third-party dependencies directly rather than as git submodules, so the submodule steps below aren't needed.
+
 Only Windows and Linux are officially supported for building. However, various other platforms are capable of building RPCS3.
 Other instructions may be found [here](https://wiki.rpcs3.net/index.php?title=Building).
 

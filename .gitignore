@@ -126,7 +126,6 @@ CMakeUserPresets.json
 
 # Development helpers
 .claude/
-BUILDING-LOCAL-MAC.md
 CLAUDE.md
 
 # Build artifacts & temp files

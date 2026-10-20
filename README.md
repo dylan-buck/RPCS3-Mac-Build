@@ -1,6 +1,6 @@
-# RPCS3 Mac Build (Apple Silicon)
+# RPCS3 Mac Build (Apple Silicon + Windows)
 
-A custom RPCS3 build for Apple Silicon Macs (M1/M2/M3/M4) that keeps online play working against the current RPCN server (protocol **v34**).
+A custom RPCS3 build for Apple Silicon Macs (M1/M2/M3/M4), also available for Windows x64, that keeps online play working against the current RPCN server (protocol **v34**).
 
 ## What Is This?
 
@@ -26,11 +26,21 @@ This is a patched RPCS3 PS3 emulator build that keeps online multiplayer working
 
 Each release's notes say which RPCN protocol version it supports. If the latest release is older than the protocol above, build from source (see below).
 
-## Installation
+Each release contains:
+
+| File | Platform |
+|---|---|
+| `RPCS3-Mac-Build-arm64.zip` | macOS, Apple Silicon |
+| `RPCS3-Windows-Build-x64.7z` | Windows 10/11, x64 |
+| `sha256sum.txt` | Checksums (also read by the macOS in-app updater) |
+
+## Installation (macOS)
 
 1. Download `RPCS3-Mac-Build-arm64.zip` from the latest release
 2. Unzip and drag `RPCS3.app` to your **Applications** folder
 3. **First launch:** Right-click the app and select **Open** (to bypass Gatekeeper)
+
+Builds from the RPCN v34 release on can update themselves: **Help → Check for Updates** (or the automatic check at startup) installs the latest release.
 
 ### Code Signing Fix
 
@@ -41,11 +51,19 @@ xattr -cr /Applications/RPCS3.app
 codesign --force --deep --sign - /Applications/RPCS3.app
 ```
 
+## Installation (Windows)
+
+1. Download `RPCS3-Windows-Build-x64.7z` from the latest release
+2. Extract it to a folder you can write to, such as `C:\RPCS3`. Windows 11 opens `.7z` files directly (right-click → **Extract All**); on Windows 10, use [7-Zip](https://www.7-zip.org)
+3. Run `rpcs3.exe`. The build isn't code-signed, so if SmartScreen says "Windows protected your PC", click **More info → Run anyway**
+
+Requires a GPU driver with Vulkan support; everything else is included. The in-app updater is macOS-only, so download new releases manually.
+
 ## Notes
 
-- Release builds are for **Apple Silicon Macs** (arm64)
 - Your existing RPCS3 config, games, and saves will work as-is
-- Config location: `~/Library/Application Support/rpcs3/`
+- Config location: `~/Library/Application Support/rpcs3/` on macOS, next to `rpcs3.exe` on Windows
+- The Windows build is new and hasn't been tested with games yet
 
 ## Building from Source
 
@@ -73,24 +91,44 @@ All third-party dependencies are committed directly in this repo (not as git sub
 
 The build script installs dependencies via Homebrew, downloads Qt, configures CMake, compiles with Ninja, and creates the final app bundle at `build/bin/RPCS3.app`.
 
-### Creating a Release Package
+### Creating a Release
 
-After building, package the app for distribution:
+The macOS in-app updater reads the **latest** release and compares its tag with the tag compiled into the app, so the release tag has to be chosen before building.
 
-```bash
-cd build/bin
-codesign --deep -fs - RPCS3.app
-zip -r -9 RPCS3-Mac-Build-arm64.zip RPCS3.app
-```
+1. **Pick the tag**, naming the RPCN protocol version, e.g. `v0.0.37-18119-rpcn34`.
+2. **Build the Mac app with that tag.** It's only read when CMake configures, so re-run CMake:
 
-Upload the zip as a GitHub Release, naming the RPCN protocol version in the tag:
+   ```bash
+   cd build
+   RPCS3_RELEASE_TAG=v0.0.37-18119-rpcnXX cmake .
+   ninja
+   ```
 
-```bash
-gh release create vX.X.X-XXXXX-rpcnXX \
-  RPCS3-Mac-Build-arm64.zip \
-  --title "RPCS3 Mac Build vX.X.X (RPCN vXX)" \
-  --notes "Release notes here"
-```
+   For a full build, export `RPCS3_RELEASE_TAG` before running `.ci/build-mac-arm64.sh` instead.
+3. **Package it** with the deploy script (from the repo root). It signs the app and writes `RPCS3-Mac-Build-arm64.zip` and `sha256sum.txt`:
+
+   ```bash
+   mkdir -p /tmp/release
+   LLVM_COMPILER_VER=21 BUILD_ARTIFACTSTAGINGDIRECTORY=/tmp/release RELEASE_MESSAGE=/tmp/release/GitHubReleaseMessage.txt .ci/deploy-mac-arm64.sh
+   ```
+
+4. **Add the Windows build** ([BUILDING-WINDOWS.md](BUILDING-WINDOWS.md)) as `RPCS3-Windows-Build-x64.7z`, and append its hash to `sha256sum.txt` **after** the Mac line:
+
+   ```bash
+   cd /tmp/release
+   shasum -a 256 RPCS3-Windows-Build-x64.7z >> sha256sum.txt
+   ```
+
+5. **Publish** as the latest release:
+
+   ```bash
+   gh release create v0.0.37-18119-rpcnXX \
+     RPCS3-Mac-Build-arm64.zip RPCS3-Windows-Build-x64.7z sha256sum.txt \
+     --title "RPCS3 Mac & Windows Build v0.0.37-18119 (RPCN vXX)" \
+     --notes-file notes.md --latest
+   ```
+
+Two rules keep the updater working: the Mac zip must be the **only** `.zip` in the release (the updater downloads the first `.zip` it finds, so ship Windows as `.7z`), and the Mac hash must be the **first** line of `sha256sum.txt` (the updater uses the first hash it finds).
 
 ## Updating for a New RPCN Protocol Version
 

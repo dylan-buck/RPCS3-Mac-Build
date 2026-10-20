@@ -31,6 +31,7 @@
 #include "module_verifier.hpp"
 #include "util/dyn_lib.hpp"
 #include <shellapi.h>
+#include <process.h>
 
 // TODO(cjj19970505@live.cn)
 // When compiling with WIN32_LEAN_AND_MEAN definition

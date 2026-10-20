@@ -13,6 +13,8 @@
 #include <bit>
 #include <string>
 #include <source_location>
+#include <new>
+#include <vector>
 
 #if defined(__SSE2__) || defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(__amd64__)
 #define ARCH_X64 1
@@ -1009,7 +1011,7 @@ template <typename To, typename From> requires (std::is_integral_v<decltype(std:
 	if constexpr ((is_from_signed && !is_to_signed) || to_mask < from_mask)
 	{
 		// Try to optimize test if both are of the same signedness
-		if (is_from_signed != is_to_signed ? !!(value & mask) : static_cast<CommonTo>(value) != value) [[unlikely]]
+		if (is_from_signed != is_to_signed ? !!(value & mask) : static_cast<CommonFrom>(static_cast<CommonTo>(value)) != value) [[unlikely]]
 		{
 			fmt::raw_verify_error(src_loc, u8"Narrowing error", +value);
 		}

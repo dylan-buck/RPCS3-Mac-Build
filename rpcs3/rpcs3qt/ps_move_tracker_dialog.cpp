@@ -15,6 +15,8 @@
 #include <QSlider>
 #include <QMessageBox>
 
+#include <thread>
+
 LOG_CHANNEL(ps_move);
 
 extern u32 get_buffer_size_by_format(s32, s32, s32);

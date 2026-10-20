@@ -4,6 +4,7 @@
 #include <functional>
 #include <algorithm>
 #include <cstdlib>
+#include <vector>
 
 namespace rsx
 {

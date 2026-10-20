@@ -40,7 +40,7 @@ cmake ..                                               \
     -DUSE_SYSTEM_SDL=OFF                               \
     -DUSE_SYSTEM_FFMPEG=ON                             \
     -DUSE_SYSTEM_OPENCV=ON                             \
-    -DUSE_SYSTEM_OPENAL=OFF                            \
+    -DUSE_SYSTEM_OPENAL=ON                             \
     -DUSE_DISCORD_RPC=ON                               \
     -DOpenGL_GL_PREFERENCE=LEGACY                      \
     -DWITH_LLVM=ON                                     \
@@ -51,7 +51,8 @@ cmake ..                                               \
     -DRUN_RPCS3_TESTS=OFF                              \
     -G Ninja
 
-ninja; build_status=$?;
+# NINJA_JOBS limits parallel jobs on low-memory machines (e.g. NINJA_JOBS=3 for 4 GB RAM)
+ninja ${NINJA_JOBS:+-j"$NINJA_JOBS"}; build_status=$?;
 
 cd ..
 

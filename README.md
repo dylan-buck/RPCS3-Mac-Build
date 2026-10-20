@@ -18,6 +18,7 @@ This is a patched RPCS3 PS3 emulator build that keeps online multiplayer working
 - Upstream `1a9dca3a3a` — TSS (title small storage) support (v34)
 - RPCN fixes: filter UnlockTrophy reply, type cast warning fixes
 - macOS fixes: Starhawk RSX fix, aligned allocator for `simple_array`, Vulkan FSR barrier/format fixes, LLVM 21 build support
+- Windows build fixes for MSYS2's current toolchain (Clang/LLVM 23, ffmpeg 9, OpenCV 5), mostly backported from upstream
 
 ## Download
 
@@ -51,7 +52,7 @@ codesign --force --deep --sign - /Applications/RPCS3.app
 | Platform | Guide | Status |
 |---|---|---|
 | macOS (Apple Silicon) | [BUILDING-LOCAL-MAC.md](BUILDING-LOCAL-MAC.md) | Primary target, used for releases |
-| Windows (x64) | [BUILDING-WINDOWS.md](BUILDING-WINDOWS.md) | MSYS2 + Clang only; not yet tested on this fork |
+| Windows (x64) | [BUILDING-WINDOWS.md](BUILDING-WINDOWS.md) | MSYS2 + Clang only; builds and starts, not yet tested with games |
 | Linux | [BUILDING.md](BUILDING.md) (upstream guide) | Not tested on this fork |
 
 ### Quick Start (macOS)

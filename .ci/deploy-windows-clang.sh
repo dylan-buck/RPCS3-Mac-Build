@@ -22,7 +22,7 @@ cmake -DMSYS2_CLANG_BIN="$MSYS2_CLANG_BIN" -DMSYS2_USR_BIN="$MSYS2_USR_BIN" -Dex
 mkdir ./bin/config
 mkdir ./bin/config/input_configs
 curl -fsSL 'https://raw.githubusercontent.com/gabomdq/SDL_GameControllerDB/master/gamecontrollerdb.txt' 1> ./bin/config/input_configs/gamecontrollerdb.txt
-curl -fsSL 'https://rpcs3.net/compatibility?api=v1&export' | iconv -t UTF-8 1> ./bin/GuiConfigs/compat_database.dat
+curl -fsSL 'https://rpcs3.net/compatibility?api=v1&export' | iconv -f UTF-8 -t UTF-8 1> ./bin/GuiConfigs/compat_database.dat
 
 # Package artifacts
 7z a -m0=LZMA2 -mx9 "$BUILD" ./bin/*

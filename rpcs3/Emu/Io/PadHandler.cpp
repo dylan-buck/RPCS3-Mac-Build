@@ -183,9 +183,10 @@ void PadHandlerBase::ConvertToSquirclePoint(u16& inX, u16& inY, u32 squircle_fac
 	const f32 x = (inX - radius) / radius;
 	const f32 y = (inY - radius) / radius;
 
-	// compute angle and len of given point to be used for squircle radius. Clamp to circle, we don't want to exceed the squircle.
+	// compute angle and len of given point to be used for squircle radius.
+	// Don't clamp to the circle, so diagonals can still reach full deflection on both axes like in v0.0.27 (DB Mac Build modification)
 	const f32 angle = std::atan2(y, x);
-	const f32 distance_to_center = std::min(1.0f, std::sqrt(std::pow(x, 2.f) + std::pow(y, 2.f)));
+	const f32 distance_to_center = std::sqrt(std::pow(x, 2.f) + std::pow(y, 2.f));
 
 	// now find len/point on the given squircle from our current angle and radius in polar coords
 	// https://thatsmaths.com/2016/07/14/squircles/
